@@ -1,0 +1,60 @@
+# service account restarting cloud-autoupdate deployment
+kind: ServiceAccount
+apiVersion: v1
+metadata:
+  name: cloud-autoupdate-restart-sa
+
+---
+# role definition for service account
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: cloud-autoupdate-restart-role
+rules:
+  - apiGroups: ["apps", "extensions"]
+    resources: ["deployments"]
+    resourceNames: ["cloud-autoupdate-deployment"]
+    verbs: ["get", "patch", "list", "watch"] # "list" and "watch" are only needed
+                                             # if you want to use `rollout status`
+---
+
+# bind the role to the service account
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: cloud-autoupdate-restart-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: cloud-autoupdate-restart-role
+subjects:
+  - kind: ServiceAccount
+    name: cloud-autoupdate-restart-sa
+
+---
+
+# CronJob 
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: cloud-autoupdate-restart-job
+spec:
+  concurrencyPolicy: Forbid
+  schedule: '*/5 * * * *' # cron spec of time, every 5 minutes
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 600 
+      template:
+        spec:
+          serviceAccountName: cloud-autoupdate-restart-sa  
+                                                 
+          restartPolicy: Never
+          containers:
+            - name: kubectl
+              image: bitnami/kubectl 
+              command:
+                - 'kubectl'
+                - 'rollout'
+                - 'restart'
+                - 'deployment/cloud-autoupdate-deployment'

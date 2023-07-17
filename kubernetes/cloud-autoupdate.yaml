@@ -1,0 +1,40 @@
+# Exposing Service as Load Balancer, to communicate with application
+apiVersion: v1
+kind: Service
+metadata:
+  name: cloud-autoupdate-service
+spec:
+  selector:
+    app: cloud-autoupdate
+  ports:
+    - protocol: 'TCP'
+      port: 8080
+      targetPort: 80
+  type: LoadBalancer
+
+---
+
+# Our Application example Deployment configuration
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: cloud-autoupdate
+  name: cloud-autoupdate-deployment
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: cloud-autoupdate
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: cloud-autoupdate
+    spec:
+      containers:
+      - image: ilya75/cloud-autoupdate:latest
+        name: cloud-autoupdate-pod
+        resources: {}
+status: {}
